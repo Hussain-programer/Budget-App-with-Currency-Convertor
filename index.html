@@ -1,0 +1,358 @@
+<html>
+<head>
+    <title>Budget Tracker</title>
+    <script src="https://unpkg.com/react/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css"></link>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="shortcut icon" href="./3d-illustration-business-man-with-glasses-grey-background-clipping-path.jpg" type="image/x-icon">
+    <style>
+        body {
+            font-family: 'Roboto', sans-serif;
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+    <div id="root"></div>
+    <script type="text/babel">
+        const App = () => {
+            const [totalBudget, setTotalBudget] = React.useState(0);
+            const [expenses, setExpenses] = React.useState([]);
+            const [expenseTitle, setExpenseTitle] = React.useState('');
+            const [expenseCost, setExpenseCost] = React.useState('');
+            const [expenseDate, setExpenseDate] = React.useState('');
+            const [expenseCategory, setExpenseCategory] = React.useState('');
+            const [budgetInput, setBudgetInput] = React.useState('');
+            const [editingIndex, setEditingIndex] = React.useState(null);
+            const [theme, setTheme] = React.useState('light');
+            const [nickname, setNickname] = React.useState('');
+            const [avatar, setAvatar] = React.useState('');
+            const [exchangeRates, setExchangeRates] = React.useState({});
+            const [fromCurrency, setFromCurrency] = React.useState('USD');
+            const [toCurrency, setToCurrency] = React.useState('USD');
+            const [conversionAmount, setConversionAmount] = React.useState('');
+            const [convertedAmount, setConvertedAmount] = React.useState('');
+
+            const categories = ["Food", "Transport", "Entertainment", "Health", "Utilities", "Others"];
+            const avatars = [
+                "./3d-illustration-business-man-with-glasses-grey-background-clipping-path.jpg",
+                "./3d-illustration-teenager-with-funny-face-glasses.jpg",
+                "./9439685.jpg",
+                "./Girl with cap.jpeg"
+            ];
+
+            const currencyNames = {
+                USD: "United States Dollar",
+                EUR: "Euro",
+                GBP: "British Pound",
+                JPY: "Japanese Yen",
+                AUD: "Australian Dollar",
+                CAD: "Canadian Dollar",
+                CHF: "Swiss Franc",
+                CNY: "Chinese Yuan",
+                SEK: "Swedish Krona",
+                NZD: "New Zealand Dollar"
+            };
+
+            React.useEffect(() => {
+                fetch('https://api.exchangerate-api.com/v4/latest/USD')
+                    .then(response => response.json())
+                    .then(data => setExchangeRates(data.rates));
+            }, []);
+
+            const handleSetBudget = () => {
+                const budget = parseFloat(budgetInput);
+                if (!isNaN(budget)) {
+                    setTotalBudget(budget);
+                    setBudgetInput('');
+                }
+            };
+
+            const handleAddExpense = () => {
+                if (expenseTitle && expenseCost && expenseDate && expenseCategory) {
+                    const newExpense = { title: expenseTitle, cost: parseFloat(expenseCost), date: expenseDate, category: expenseCategory };
+                    if (editingIndex !== null) {
+                        const updatedExpenses = expenses.map((expense, index) => index === editingIndex ? newExpense : expense);
+                        setExpenses(updatedExpenses);
+                        setEditingIndex(null);
+                    } else {
+                        setExpenses([...expenses, newExpense]);
+                    }
+                    setExpenseTitle('');
+                    setExpenseCost('');
+                    setExpenseDate('');
+                    setExpenseCategory('');
+                }
+            };
+
+            const handleEditExpense = (index) => {
+                const expense = expenses[index];
+                setExpenseTitle(expense.title);
+                setExpenseCost(expense.cost);
+                setExpenseDate(expense.date);
+                setExpenseCategory(expense.category);
+                setEditingIndex(index);
+            };
+
+            const handleDeleteExpense = (index) => {
+                const updatedExpenses = expenses.filter((_, i) => i !== index);
+                setExpenses(updatedExpenses);
+            };
+
+            const handleExport = () => {
+                const csvContent = "data:text/csv;charset=utf-8," 
+                    + ["Name,Price,Category,Date"].join(",") + "\n"
+                    + expenses.map(e => `${e.title},${e.cost},${e.category},${e.date}`).join("\n");
+                const encodedUri = encodeURI(csvContent);
+                const link = document.createElement("a");
+                link.setAttribute("href", encodedUri);
+                link.setAttribute("download", "expenses.csv");
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            };
+
+            const handleImport = (event) => {
+                const file = event.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        const text = e.target.result;
+                        const importedExpenses = text.split("\n").slice(1).map(line => {
+                            const [title, cost, category, date] = line.split(",");
+                            return { title, cost: parseFloat(cost), category, date };
+                        });
+                        setExpenses(importedExpenses);
+                    };
+                    reader.readAsText(file);
+                }
+            };
+
+            const handleConvertCurrency = () => {
+                if (conversionAmount && fromCurrency && toCurrency && exchangeRates[fromCurrency] && exchangeRates[toCurrency]) {
+                    const converted = (parseFloat(conversionAmount) / exchangeRates[fromCurrency]) * exchangeRates[toCurrency];
+                    setConvertedAmount(converted.toFixed(2));
+                }
+            };
+
+            const totalExpenses = expenses.reduce((acc, expense) => acc + expense.cost, 0);
+            const balance = totalBudget - totalExpenses;
+
+            const themes = {
+                light: {
+                    background: 'bg-gray-100',
+                    card: 'bg-white',
+                    text: 'text-gray-800',
+                    button: 'bg-blue-500',
+                    buttonHover: 'hover:bg-blue-600',
+                    buttonText: 'text-white',
+                    header: 'bg-indigo-500',
+                    headerText: 'text-white',
+                    border: 'border-gray-300',
+                    iconEdit: 'text-blue-500',
+                    iconEditHover: 'hover:text-blue-600',
+                    iconDelete: 'text-red-500',
+                    iconDeleteHover: 'hover:text-red-600',
+                },
+                dark: {
+                    background: 'bg-gray-900',
+                    card: 'bg-gray-800',
+                    text: 'text-gray-200',
+                    button: 'bg-green-500',
+                    buttonHover: 'hover:bg-green-600',
+                    buttonText: 'text-white',
+                    header: 'bg-gray-700',
+                    headerText: 'text-gray-200',
+                    border: 'border-gray-600',
+                    iconEdit: 'text-green-500',
+                    iconEditHover: 'hover:text-green-600',
+                    iconDelete: 'text-red-500',
+                    iconDeleteHover: 'hover:text-red-600',
+                }
+            };
+
+            const currentTheme = themes[theme];
+
+            return (
+                <div className={`container mx-auto p-4 ${currentTheme.background}`}>
+                    <div className="flex justify-end mb-4">
+                        <select 
+                            value={theme} 
+                            onChange={(e) => setTheme(e.target.value)} 
+                            className={`p-2 rounded ${currentTheme.border} ${currentTheme.text}`}
+                        >
+                            <option value="light">
+                                <i className="fas fa-sun"></i> Light Theme
+                            </option>
+                            <option value="dark">
+                                <i className="fas fa-moon"></i> Dark Theme
+                            </option>
+                        </select>
+                    </div>
+                    <div className="flex flex-col md:flex-row items-center mb-4">
+                        <input 
+                            type="text" 
+                            value={nickname} 
+                            onChange={(e) => setNickname(e.target.value)} 
+                            placeholder="Enter Nickname" 
+                            className={`p-2 rounded ${currentTheme.border} ${currentTheme.text} mb-4 md:mb-0 md:mr-4`} 
+                        />
+                        <div className="flex items-center">
+                            {avatars.map((url, index) => (
+                                <img 
+                                    key={index} 
+                                    src={url} 
+                                    alt={`Avatar ${index + 1}`} 
+                                    className={`w-12 h-12 rounded-full mr-2 cursor-pointer ${avatar === url ? 'border-2 border-blue-500' : ''}`} 
+                                    onClick={() => setAvatar(url)} 
+                                />
+                            ))}
+                        </div>
+                    </div>
+                    <div className="flex items-center mb-4">
+                        {avatar && <img src={avatar} alt="Avatar" className="w-12 h-12 rounded-full mr-4" />}
+                        {nickname && <h2 className={`text-lg font-semibold ${currentTheme.text}`}>Hello, {nickname}!</h2>}
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                        <div className={`${currentTheme.card} p-6 rounded-lg shadow-md transition-transform transform hover:scale-105`}>
+                            <h2 className={`text-lg font-semibold mb-4 ${currentTheme.text}`}>Budget</h2>
+                            <input 
+                                type="text" 
+                                value={budgetInput} 
+                                onChange={(e) => setBudgetInput(e.target.value)} 
+                                placeholder="Enter Total Amount" 
+                                className={`w-full p-2 ${currentTheme.border} rounded mb-4`} 
+                            />
+                            <button onClick={handleSetBudget} className={`w-full ${currentTheme.button} ${currentTheme.buttonText} p-2 rounded ${currentTheme.buttonHover}`}>Set Budget</button>
+                        </div>
+                        <div className={`${currentTheme.card} p-6 rounded-lg shadow-md transition-transform transform hover:scale-105`}>
+                            <h2 className={`text-lg font-semibold mb-4 ${currentTheme.text}`}>Expenses</h2>
+                            <input 
+                                type="text" 
+                                value={expenseTitle} 
+                                onChange={(e) => setExpenseTitle(e.target.value)} 
+                                placeholder="Enter Title Of Product" 
+                                className={`w-full p-2 ${currentTheme.border} rounded mb-4`} 
+                            />
+                            <input 
+                                type="text" 
+                                value={expenseCost} 
+                                onChange={(e) => setExpenseCost(e.target.value)} 
+                                placeholder="Enter Cost Of Product" 
+                                className={`w-full p-2 ${currentTheme.border} rounded mb-4`} 
+                            />
+                            <input 
+                                type="date" 
+                                value={expenseDate} 
+                                onChange={(e) => setExpenseDate(e.target.value)} 
+                                className={`w-full p-2 ${currentTheme.border} rounded mb-4`} 
+                            />
+                            <select 
+                                value={expenseCategory} 
+                                onChange={(e) => setExpenseCategory(e.target.value)} 
+                                className={`w-full p-2 ${currentTheme.border} rounded mb-4`}
+                            >
+                                <option value="" disabled>Select Category</option>
+                                {categories.map((category, index) => (
+                                    <option key={index} value={category}>{category}</option>
+                                ))}
+                            </select>
+                            <button onClick={handleAddExpense} className={`w-full ${currentTheme.button} ${currentTheme.buttonText} p-2 rounded ${currentTheme.buttonHover}`}>Check Amount</button>
+                        </div>
+                    </div>
+                    <div className={`${currentTheme.card} p-6 rounded-lg shadow-md mb-4 transition-transform transform hover:scale-105`}>
+                        <h2 className={`text-lg font-semibold mb-4 ${currentTheme.text}`}>Currency Exchange</h2>
+                        <div className="mb-4">
+                            <h3 className={`text-md font-semibold mb-2 ${currentTheme.text}`}>Real-time Exchange Rates</h3>
+                            <select className={`w-full p-2 ${currentTheme.border} rounded mb-4`}>
+                                {Object.keys(exchangeRates).map((currency, index) => (
+                                    <option key={index} value={currency}>{currencyNames[currency] || currency}: {exchangeRates[currency]}</option>
+                                ))}
+                            </select>
+                        </div>
+                        <div className="mb-4">
+                            <h3 className={`text-md font-semibold mb-2 ${currentTheme.text}`}>Currency Conversion</h3>
+                            <input 
+                                type="text" 
+                                value={conversionAmount} 
+                                onChange={(e) => setConversionAmount(e.target.value)} 
+                                placeholder="Enter Amount" 
+                                className={`w-full p-2 ${currentTheme.border} rounded mb-4`} 
+                            />
+                            <div className="flex flex-col md:flex-row mb-4">
+                                <select 
+                                    value={fromCurrency} 
+                                    onChange={(e) => setFromCurrency(e.target.value)} 
+                                    className={`w-full p-2 ${currentTheme.border} rounded mb-4 md:mb-0 md:mr-4`}
+                                >
+                                    {Object.keys(exchangeRates).map((currency, index) => (
+                                        <option key={index} value={currency}>{currencyNames[currency] || currency}</option>
+                                    ))}
+                                </select>
+                                <select 
+                                    value={toCurrency} 
+                                    onChange={(e) => setToCurrency(e.target.value)} 
+                                    className={`w-full p-2 ${currentTheme.border} rounded`}
+                                >
+                                    {Object.keys(exchangeRates).map((currency, index) => (
+                                        <option key={index} value={currency}>{currencyNames[currency] || currency}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <button onClick={handleConvertCurrency} className={`w-full ${currentTheme.button} ${currentTheme.buttonText} p-2 rounded ${currentTheme.buttonHover}`}>Convert</button>
+                            {convertedAmount && (
+                                <div className={`mt-4 ${currentTheme.text}`}>
+                                    <h3 className="text-md font-semibold">Converted Amount: {convertedAmount} {toCurrency}</h3>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                    <div className={`${currentTheme.header} ${currentTheme.headerText} p-4 rounded-lg shadow-md mb-4 flex flex-col md:flex-row justify-between transition-transform transform hover:scale-105`}>
+                        <div className="mb-4 md:mb-0">
+                            <h3 className="font-semibold">Total Budget</h3>
+                            <p>{totalBudget}</p>
+                        </div>
+                        <div className="mb-4 md:mb-0">
+                            <h3 className="font-semibold">Expenses</h3>
+                            <p>{totalExpenses}</p>
+                        </div>
+                        <div>
+                            <h3 className="font-semibold">Balance</h3>
+                            <p>{balance}</p>
+                        </div>
+                    </div>
+                    <div className={`${currentTheme.card} p-6 rounded-lg shadow-md mb-4 transition-transform transform hover:scale-105`}>
+                        <h2 className={`text-lg font-semibold mb-4 ${currentTheme.text}`}>Expenses List</h2>
+                        <ul>
+                            {expenses.map((expense, index) => (
+                                <li key={index} className="flex justify-between items-center mb-2">
+                                    <div className="flex items-center">
+                                        <div className={`w-1 ${currentTheme.header} h-6 mr-2`}></div>
+                                        <span>{expense.title}</span>
+                                    </div>
+                                    <div className="flex items-center">
+                                        <span className="mr-4">{expense.cost}</span>
+                                        <span className="mr-4">{expense.category}</span>
+                                        <span className="mr-4">{expense.date}</span>
+                                        <i className={`fas fa-edit ${currentTheme.iconEdit} mr-2 cursor-pointer ${currentTheme.iconEditHover}`} onClick={() => handleEditExpense(index)}></i>
+                                        <i className={`fas fa-trash ${currentTheme.iconDelete} cursor-pointer ${currentTheme.iconDeleteHover}`} onClick={() => handleDeleteExpense(index)}></i>
+                                    </div>
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+                    <div className={`${currentTheme.card} p-6 rounded-lg shadow-md transition-transform transform hover:scale-105`}>
+                        <h2 className={`text-lg font-semibold mb-4 ${currentTheme.text}`}>Export and Import</h2>
+                        <button onClick={handleExport} className={`w-full ${currentTheme.button} ${currentTheme.buttonText} p-2 rounded ${currentTheme.buttonHover} mb-4`}>Export to CSV</button>
+                        <input type="file" accept=".csv" onChange={handleImport} className={`w-full p-2 ${currentTheme.border} rounded`} />
+                    </div>
+                </div>
+            );
+        };
+
+        ReactDOM.render(<App />, document.getElementById('root'));
+    </script>
+</body>
+</html>
